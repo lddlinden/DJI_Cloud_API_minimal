@@ -1,2 +1,4 @@
 FastAPI
 paho-mqtt >= 2
+uvicorn
+python-dotenv

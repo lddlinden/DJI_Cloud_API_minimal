@@ -8,12 +8,17 @@ from importlib.metadata import version
 
 import paho
 import paho.mqtt.client as mqtt
+from dotenv import load_dotenv
 
-host_addr = os.environ["HOST_ADDR"]
+load_dotenv()  # Load variables from .env file
+
+host_addr = os.environ.get("HOST_ADDR")
+if not host_addr:
+    raise ValueError("Environment variable HOST_ADDR is not set.")
 
 
 # The callback for when the client receives a CONNACK response from the server.
-def on_connect(client, userdata, flags, rc):
+def on_connect(client, userdata, flags, rc, properties=None):
     print("Connected with result code " + str(rc))
 
     # Subscribing in on_connect() means that if we lose the connection and

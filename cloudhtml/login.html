@@ -24,10 +24,9 @@
     </div>
     <ul id="logs"></ul>
     <script>
-      const APP_ID = 130943;
-      const LICENSE =
-        "HdMDWuYVpt05j3pIk+/vqoJlfY+SP6vp7z6XDyzGeM0d+Oy4JavUyYP/VsOw5i0UE07Lt5q9rzk9Jex1+CnPQO7OzBE6XwcNwZ0pDP/LPTjqdSPRezbmRB8z5yNf5QbEhe1YyLh++JzW9mr9BCkXy1v1h2+Uo0S1MSRZcLgLRw0=";
-      const APP_KEY = "36de02838593125bbe9ab32d08813fb";
+      const APP_ID = "{{DJI_APP_ID}}";
+      const LICENSE = "{{DJI_LICENSE}}";
+      const APP_KEY = "{{DJI_APP_KEY}}";
       var fieldList = document.getElementById("logs");
       var log = function (msg) {
         var li = document.createElement("li");
@@ -48,21 +47,20 @@
         log("platform is verified: " + window.djiBridge.platformIsVerified());
 
         var register_params = JSON.stringify({
-          host: "tcp://hostnamehere:1883", // mqtt address, example: tcp://xx.xx.xx.xx:xxx
-          connectCallback: "reg_calback", // js interface for connection status callbacks
+          host: "tcp://hostnamehere:1883",
+          connectCallback: "reg_calback",
           username: "userloginhere",
           password: "userpasswordhere",
         });
-        log(
-          "Load Component: thing " +
-            window.djiBridge.platformLoadComponent("thing", register_params) +
-            "\n Stateℹ️: " +
-            window.djiBridge.thingGetConnectState()
-        );
-        log(
-          "Start the connection thingconn: " +
-            window.djiBridge.thingConnect("userloginhere", "userpasswordhere", "reg_calback")
-        );
+        
+        log("Params being loaded: " + register_params);
+        var loadResult = window.djiBridge.platformLoadComponent("thing", register_params);
+        log("Load Component result: " + loadResult);
+        log("State after load: " + window.djiBridge.thingGetConnectState());
+        
+        log("Attempting thingConnect with user: userloginhere");
+        var connectResult = window.djiBridge.thingConnect("userloginhere", "userpasswordhere", "reg_calback");
+        log("thingConnect result: " + connectResult);
 
         log("Thing Connect state: " + window.djiBridge.thingGetConnectState());
         // log("TODO here I am supposed to ask about login, password, gateway");
