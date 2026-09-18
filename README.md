@@ -18,7 +18,7 @@ Minimal working example using DJI Cloud API.
 
 1. Open DJI Pilot App
 2. Go to `Cloud Service` -> `Other platforms`
-3. Write url `http://HOST_ADDR:5000/login` and connect
+3. Write url `http://HOST_ADDR:3000/login` and connect
 4. Press Login.
 
 Now app `cloud_api_mqtt.py` should show you some telemetry from drone

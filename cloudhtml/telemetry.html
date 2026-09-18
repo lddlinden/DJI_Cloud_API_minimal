@@ -1,0 +1,277 @@
+<!doctype html>
+<html lang="sv">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DJI Bridge Telemetry</title>
+<style>
+:root { color-scheme: dark; }
+body { margin:0; font-family:system-ui,-apple-system,"Segoe UI",sans-serif; background:#101317; color:#eef2f5; }
+header { position:sticky; top:0; z-index:5; padding:14px 18px; background:#171b20; border-bottom:1px solid #30363d; }
+h1 { margin:0 0 5px; font-size:21px; }
+h2 { font-size:16px; margin:0 0 9px; }
+.sub { color:#9da7b2; font-size:13px; }
+.wrap { padding:16px; max-width:1600px; margin:auto; }
+.status { display:flex; flex-wrap:wrap; gap:10px; margin-bottom:14px; }
+.pill { border:1px solid #30363d; border-radius:999px; padding:6px 10px; font-size:12px; background:#171b20; }
+.ok { border-color:#3b7d55; } .bad { border-color:#8a4242; }
+section { margin-top:18px; }
+.grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:10px; }
+.card { background:#171b20; border:1px solid #30363d; border-radius:10px; padding:12px; min-height:68px; }
+.label { color:#9da7b2; font-size:12px; margin-bottom:7px; }
+.value { font-size:20px; font-weight:650; word-break:break-word; }
+.unit { font-size:12px; color:#9da7b2; font-weight:400; }
+.table-wrap { overflow:auto; border:1px solid #30363d; border-radius:10px; }
+table { width:100%; border-collapse:collapse; min-width:1900px; }
+th,td { padding:8px 9px; border-bottom:1px solid #282e35; text-align:left; white-space:nowrap; font-size:12px; }
+th { color:#aeb8c2; background:#171b20; position:sticky; top:0; }
+tr:last-child td { border-bottom:0; }
+details { border:1px solid #30363d; border-radius:10px; background:#171b20; padding:10px; }
+summary { cursor:pointer; color:#c9d1d9; }
+pre { white-space:pre-wrap; word-break:break-word; max-height:600px; overflow:auto; font-size:11px; }
+.empty { padding:20px; color:#9da7b2; text-align:center; border:1px dashed #3a414a; border-radius:10px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>DJI Bridge Telemetry — Mavic 3T</h1>
+  <div class="sub">Live aircraft OSD, kamera/gimbal och termisk payload</div>
+</header>
+
+<div class="wrap">
+  <div class="status">
+    <span id="apiStatus" class="pill">API: ansluter…</span>
+    <span id="dbStatus" class="pill">DB: —</span>
+    <span id="rowStatus" class="pill">Aircraft-rader: —</span>
+    <span id="updated" class="pill">Senast: —</span>
+  </div>
+
+  <section>
+    <h2>Flygdata</h2>
+    <div class="grid">
+      <div class="card"><div class="label">Batteri</div><div class="value" id="battery">—</div></div>
+      <div class="card"><div class="label">Batteritemperatur</div><div class="value" id="battery_temperature">—</div></div>
+      <div class="card"><div class="label">Batterispänning</div><div class="value" id="battery_voltage">—</div></div>
+      <div class="card"><div class="label">Höjd</div><div class="value" id="height">—</div></div>
+      <div class="card"><div class="label">Elevation</div><div class="value" id="elevation">—</div></div>
+      <div class="card"><div class="label">Vertikal hastighet</div><div class="value" id="vertical_speed">—</div></div>
+      <div class="card"><div class="label">Horisontell hastighet</div><div class="value" id="horizontal_speed">—</div></div>
+      <div class="card"><div class="label">Heading</div><div class="value" id="heading">—</div></div>
+      <div class="card"><div class="label">Pitch</div><div class="value" id="pitch">—</div></div>
+      <div class="card"><div class="label">Roll</div><div class="value" id="roll">—</div></div>
+      <div class="card"><div class="label">GPS-satelliter</div><div class="value" id="satellites">—</div></div>
+      <div class="card"><div class="label">RTK-satelliter</div><div class="value" id="rtk_satellites">—</div></div>
+      <div class="card"><div class="label">Hemavstånd</div><div class="value" id="home_distance">—</div></div>
+      <div class="card"><div class="label">Vindriktning</div><div class="value" id="wind_direction">—</div></div>
+      <div class="card"><div class="label">Vindhastighet</div><div class="value" id="wind_speed">—</div></div>
+      <div class="card"><div class="label">RTH power</div><div class="value" id="return_home_power">—</div></div>
+      <div class="card"><div class="label">Landing power</div><div class="value" id="landing_power">—</div></div>
+      <div class="card"><div class="label">Återstående flygtid</div><div class="value" id="remain_flight_time">—</div></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Position</h2>
+    <div class="grid">
+      <div class="card"><div class="label">Latitude</div><div class="value" id="latitude">—</div></div>
+      <div class="card"><div class="label">Longitude</div><div class="value" id="longitude">—</div></div>
+      <div class="card"><div class="label">Aircraft SN</div><div class="value" id="device_sn">—</div></div>
+      <div class="card"><div class="label">Payload index</div><div class="value" id="payload_index">—</div></div>
+      <div class="card"><div class="label">Mottaget</div><div class="value" id="received_at">—</div></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Gimbal / kamera</h2>
+    <div class="grid">
+      <div class="card"><div class="label">Camera / Gimbal Pitch</div><div class="value" id="gimbal_pitch">—</div></div>
+      <div class="card"><div class="label">Camera / Gimbal Roll</div><div class="value" id="gimbal_roll">—</div></div>
+      <div class="card"><div class="label">Camera / Gimbal Yaw</div><div class="value" id="gimbal_yaw">—</div></div>
+      <div class="card"><div class="label">Camera mode</div><div class="value" id="camera_mode">—</div></div>
+      <div class="card"><div class="label">Recording state</div><div class="value" id="recording_state">—</div></div>
+      <div class="card"><div class="label">Record time</div><div class="value" id="record_time">—</div></div>
+      <div class="card"><div class="label">Zoom</div><div class="value" id="zoom_factor">—</div></div>
+      <div class="card"><div class="label">IR zoom</div><div class="value" id="ir_zoom_factor">—</div></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Termisk kamera</h2>
+    <div class="grid">
+      <div class="card"><div class="label">Palette style</div><div class="value" id="thermal_palette">—</div></div>
+      <div class="card"><div class="label">Gain mode</div><div class="value" id="thermal_gain_mode">—</div></div>
+      <div class="card"><div class="label">Max temperatur</div><div class="value" id="thermal_global_temperature_max">—</div></div>
+      <div class="card"><div class="label">Min temperatur</div><div class="value" id="thermal_global_temperature_min">—</div></div>
+      <div class="card"><div class="label">Isotherm lower</div><div class="value" id="thermal_isotherm_lower_limit">—</div></div>
+      <div class="card"><div class="label">Isotherm upper</div><div class="value" id="thermal_isotherm_upper_limit">—</div></div>
+      <div class="card"><div class="label">Isotherm state</div><div class="value" id="thermal_isotherm_state">—</div></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Senaste aircraft OSD</h2>
+    <div id="empty" class="empty" hidden>Inga aircraft-rader ännu.</div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr>
+          <th>Tid</th><th>SN</th><th>Battery</th><th>Bat temp</th><th>Height</th>
+          <th>V.speed</th><th>H.speed</th><th>Heading</th><th>Pitch</th><th>Roll</th>
+          <th>GPS</th><th>RTK</th><th>Lat</th><th>Lon</th><th>Home dist</th>
+          <th>Gimbal P</th><th>Gimbal R</th><th>Gimbal Y</th><th>Payload</th>
+          <th>Camera mode</th><th>Recording</th><th>Record time</th><th>Zoom</th><th>IR zoom</th>
+          <th>Thermal max</th><th>Thermal min</th>
+        </tr></thead>
+        <tbody id="rows"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section>
+    <h2>Senaste råa DJI-meddelande</h2>
+    <details open>
+      <summary>Visa raw_json för senaste aircraft-raden</summary>
+      <pre id="raw">—</pre>
+    </details>
+  </section>
+
+  <section>
+    <h2>Diagnostik</h2>
+    <details>
+      <summary>Visa DB/API-information</summary>
+      <pre id="debug">—</pre>
+    </details>
+  </section>
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+
+function fmt(v, digits=2) {
+  if (v === null || v === undefined || v === "") return "—";
+  if (typeof v === "number") return Number.isInteger(v) ? String(v) : v.toFixed(digits);
+  return String(v);
+}
+
+function set(id, value, suffix="") {
+  $(id).textContent = value === "—" ? "—" : `${value}${suffix}`;
+}
+
+function setPill(id, text, ok) {
+  const el = $(id);
+  el.textContent = text;
+  el.classList.toggle("ok", ok);
+  el.classList.toggle("bad", !ok);
+}
+
+function updateCards(d) {
+  set("battery", fmt(d.battery,1), "%");
+  set("battery_temperature", fmt(d.battery_temperature,1), " °C");
+  set("battery_voltage", fmt(d.battery_voltage,0), " mV");
+  set("height", fmt(d.height,2), " m");
+  set("elevation", fmt(d.elevation,2), " m");
+  set("vertical_speed", fmt(d.vertical_speed,2), " m/s");
+  set("horizontal_speed", fmt(d.horizontal_speed,2), " m/s");
+  set("heading", fmt(d.heading,1), "°");
+  set("pitch", fmt(d.pitch,1), "°");
+  set("roll", fmt(d.roll,1), "°");
+  set("satellites", fmt(d.satellites,0));
+  set("rtk_satellites", fmt(d.rtk_satellites,0));
+  set("home_distance", fmt(d.home_distance,2), " m");
+  set("wind_direction", fmt(d.wind_direction,1), "°");
+  set("wind_speed", fmt(d.wind_speed,2), " m/s");
+  set("return_home_power", fmt(d.return_home_power,0), "%");
+  set("landing_power", fmt(d.landing_power,0), "%");
+  set("remain_flight_time", fmt(d.remain_flight_time,0), " s");
+  set("latitude", fmt(d.latitude,8));
+  set("longitude", fmt(d.longitude,8));
+  set("device_sn", fmt(d.device_sn));
+  set("payload_index", fmt(d.payload_index));
+  set("received_at", fmt(d.received_at));
+  set("gimbal_pitch", fmt(d.gimbal_pitch,1), "°");
+  set("gimbal_roll", fmt(d.gimbal_roll,1), "°");
+  set("gimbal_yaw", fmt(d.gimbal_yaw,1), "°");
+  set("camera_mode", fmt(d.camera_mode));
+  set("recording_state", fmt(d.recording_state));
+  set("record_time", fmt(d.record_time), " s");
+  set("zoom_factor", fmt(d.zoom_factor,2), "x");
+  set("ir_zoom_factor", fmt(d.ir_zoom_factor,2), "x");
+  set("thermal_palette", fmt(d.thermal_palette));
+  set("thermal_gain_mode", fmt(d.thermal_gain_mode));
+  set("thermal_global_temperature_max", fmt(d.thermal_global_temperature_max,2), " °C");
+  set("thermal_global_temperature_min", fmt(d.thermal_global_temperature_min,2), " °C");
+  set("thermal_isotherm_lower_limit", fmt(d.thermal_isotherm_lower_limit,1), " °C");
+  set("thermal_isotherm_upper_limit", fmt(d.thermal_isotherm_upper_limit,1), " °C");
+  set("thermal_isotherm_state", fmt(d.thermal_isotherm_state));
+
+  try {
+    const raw = JSON.parse(d.raw_json);
+    $("raw").textContent = JSON.stringify(raw, null, 2);
+  } catch {
+    $("raw").textContent = d.raw_json || "—";
+  }
+}
+
+function cell(v) {
+  const td = document.createElement("td");
+  td.textContent = fmt(v);
+  return td;
+}
+
+function renderRows(rows) {
+  const tbody = $("rows");
+  tbody.replaceChildren();
+  $("empty").hidden = rows.length !== 0;
+  $("rowStatus").textContent = `Aircraft-rader: ${rows.length}`;
+
+  for (const d of rows) {
+    const tr = document.createElement("tr");
+    [
+      d.received_at, d.device_sn, d.battery, d.battery_temperature, d.height,
+      d.vertical_speed, d.horizontal_speed, d.heading, d.pitch, d.roll,
+      d.satellites, d.rtk_satellites, d.latitude, d.longitude, d.home_distance,
+      d.gimbal_pitch, d.gimbal_roll, d.gimbal_yaw, d.payload_index,
+      d.camera_mode, d.recording_state, d.record_time, d.zoom_factor,
+      d.ir_zoom_factor, d.thermal_global_temperature_max,
+      d.thermal_global_temperature_min
+    ].forEach(v => tr.appendChild(cell(v)));
+    tbody.appendChild(tr);
+  }
+
+  if (rows.length) updateCards(rows[0]);
+}
+
+async function loadTelemetry() {
+  try {
+    const r = await fetch("/api/telemetry/latest?limit=100", {cache:"no-store"});
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    const rows = await r.json();
+    setPill("apiStatus", `API: OK (${rows.length} rader)`, true);
+    renderRows(rows);
+    $("updated").textContent = `Senast uppdaterad: ${new Date().toLocaleTimeString()}`;
+  } catch (e) {
+    setPill("apiStatus", `API: fel — ${e.message}`, false);
+    $("updated").textContent = "Senast uppdaterad: —";
+  }
+}
+
+async function loadDebug() {
+  try {
+    const r = await fetch("/api/telemetry/debug", {cache:"no-store"});
+    const d = await r.json();
+    $("debug").textContent = JSON.stringify(d, null, 2);
+    setPill("dbStatus", d.db_exists ? `DB: OK (${d.db_path})` : "DB: saknas", d.db_exists);
+  } catch (e) {
+    setPill("dbStatus", "DB/API-fel", false);
+    $("debug").textContent = String(e);
+  }
+}
+
+async function refresh() {
+  await Promise.all([loadTelemetry(), loadDebug()]);
+}
+
+refresh();
+setInterval(refresh, 1000);
+</script>
+</body>
+</html>

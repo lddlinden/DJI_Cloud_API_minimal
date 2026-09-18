@@ -1,90 +1,465 @@
 <!DOCTYPE html>
 <html>
-  <head>
-    <title>Login page</title>
-    <style>
-      .button-row {
-        display: flex;
-        justify-content: space-between;
-      }
+<head>
+  <title>UAS-Syd DJI-Cloud</title>
 
-      button {
-        flex: 1;
-        margin: 0 5px;
-      }
-    </style>
-  </head>
-  <body>
-    <h1>DJI Cloud API test</h1>
+  <style>
+    .button-row {
+      display: flex;
+      justify-content: space-between;
+    }
 
-    <div class="button-row">
-      <button id="login-button">Login</button>
-      <button id="logout-button">Logout</button>
-      <button id="raport-button">Raport</button>
-    </div>
-    <ul id="logs"></ul>
-    <script>
-      const APP_ID = "{{DJI_APP_ID}}";
-      const LICENSE = "{{DJI_LICENSE}}";
-      const APP_KEY = "{{DJI_APP_KEY}}";
-      var fieldList = document.getElementById("logs");
-      var log = function (msg) {
-        var li = document.createElement("li");
-        li.innerText = msg;
-        fieldList.appendChild(li);
-      };
-      var reg_calback = function () {
-        log("Callback called🎉, arguments:" + Array.from(arguments));
-      };
-      var loginButton = document.getElementById("login-button");
-      loginButton.addEventListener("click", function () {
-        log("login");
-        var token = window.djiBridge.platformVerifyLicense(
+    button {
+      flex: 1;
+      margin: 0 5px;
+    }
+  </style>
+</head>
+
+<body>
+
+  <h1>DJI Cloud API</h1>
+
+  <div class="button-row">
+    <button id="login-button">Login</button>
+    <button id="logout-button">Logout</button>
+    <button id="report-button">Report</button>
+  </div>
+
+  <ul id="logs"></ul>
+
+<script>
+
+// ------------------------------------------------------------
+// Configuration
+// ------------------------------------------------------------
+
+const APP_ID = "{{DJI_APP_ID}}";
+const LICENSE = "{{DJI_LICENSE}}";
+const APP_KEY = "{{DJI_APP_KEY}}";
+
+const MQTT_HOST = "{{MQTT_HOST}}";
+const MQTT_PORT = "{{MQTT_PORT}}";
+const MQTT_USERNAME = "{{MQTT_USERNAME}}";
+const MQTT_PASSWORD = "{{MQTT_PASSWORD}}";
+
+const CLOUD_NAME = "{{CLOUD_NAME}}";
+const CLOUD_DESCRIPTION = "{{CLOUD_DESCRIPTION}}";
+
+
+// ------------------------------------------------------------
+// Local logging
+// ------------------------------------------------------------
+
+const fieldList = document.getElementById("logs");
+
+function log(message) {
+  const li = document.createElement("li");
+  li.innerText = message;
+  fieldList.appendChild(li);
+}
+
+
+// ------------------------------------------------------------
+// Backend debug logging
+//
+// sendBeacon() is used first because it is designed for
+// sending data while a WebView/page is being closed.
+// fetch() is used as fallback.
+// ------------------------------------------------------------
+
+function debugBackend(message, data = null) {
+
+  const payload = JSON.stringify({
+    timestamp: new Date().toISOString(),
+    message: message,
+    data: data
+  });
+
+
+  // Try sendBeacon first.
+  try {
+
+    const blob = new Blob(
+      [payload],
+      { type: "application/json" }
+    );
+
+    const sent = navigator.sendBeacon(
+      "/debug",
+      blob
+    );
+
+    if (sent) {
+      return true;
+    }
+
+  } catch (_) {
+    // Continue with fetch fallback.
+  }
+
+
+  // Fetch fallback.
+  try {
+
+    fetch("/debug", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: payload,
+      keepalive: true
+    }).catch(() => {});
+
+  } catch (_) {
+    // Debug logging must never break DJI functionality.
+  }
+
+  return false;
+}
+
+
+// ------------------------------------------------------------
+// Combined WebView + backend logging
+// ------------------------------------------------------------
+
+function debugLog(message, data = null) {
+
+  let text = message;
+
+  if (data !== null) {
+
+    try {
+      text += " | " + JSON.stringify(data);
+    } catch (_) {
+      text += " | " + String(data);
+    }
+  }
+
+  log(text);
+  debugBackend(message, data);
+}
+
+
+// ------------------------------------------------------------
+// Show DJI API result
+// ------------------------------------------------------------
+
+function show(label, value) {
+
+  let text;
+
+  try {
+
+    text =
+      typeof value === "string"
+        ? value
+        : JSON.stringify(value);
+
+  } catch (_) {
+
+    text = String(value);
+  }
+
+  log(label + ": " + text);
+}
+
+
+// ------------------------------------------------------------
+// Safe DJI API call
+// ------------------------------------------------------------
+
+function call(name, fn) {
+
+  try {
+
+    const result = fn();
+
+    show(name, result);
+
+    return result;
+
+  } catch (error) {
+
+    log(name + " EXCEPTION: " + error);
+
+    debugBackend(
+      name + " EXCEPTION",
+      String(error)
+    );
+
+    return null;
+  }
+}
+
+
+// ------------------------------------------------------------
+// DJI lifecycle callbacks
+//
+// IMPORTANT:
+// These are registered immediately when the WebView loads.
+// They are NOT registered only after Login.
+// ------------------------------------------------------------
+
+window.djiBridge.onBackClick = function () {
+
+  debugLog(
+    ">>> onBackClick CALLED <<<"
+  );
+
+  return true;
+};
+
+
+window.djiBridge.onStopPlatform = function () {
+
+  let state = null;
+  let loaded = null;
+
+  try {
+    state =
+      window.djiBridge.thingGetConnectState();
+  } catch (error) {
+    state = "EXCEPTION: " + error;
+  }
+
+  try {
+    loaded =
+      window.djiBridge.platformIsComponentLoaded("thing");
+  } catch (error) {
+    loaded = "EXCEPTION: " + error;
+  }
+
+  debugLog(
+    ">>> onStopPlatform CALLED <<<",
+    {
+      thingState: state,
+      componentLoaded: loaded
+    }
+  );
+};
+
+
+// ------------------------------------------------------------
+// MQTT / Thing connection callback
+// ------------------------------------------------------------
+
+function reg_callback() {
+
+  const args =
+    Array.from(arguments)
+      .map(String)
+      .join(", ");
+
+  let state;
+
+  try {
+    state =
+      window.djiBridge.thingGetConnectState();
+  } catch (error) {
+    state = "EXCEPTION: " + error;
+  }
+
+  debugLog(
+    "Thing connection callback",
+    {
+      arguments: args,
+      state: state
+    }
+  );
+}
+
+
+// ------------------------------------------------------------
+// Login
+// ------------------------------------------------------------
+
+document.getElementById("login-button").addEventListener(
+  "click",
+  function () {
+
+    debugLog("--- LOGIN START ---");
+
+
+    // --------------------------------------------------------
+    // License
+    // --------------------------------------------------------
+
+    call(
+      "platformVerifyLicense",
+      () =>
+        window.djiBridge.platformVerifyLicense(
           APP_ID,
           APP_KEY,
           LICENSE
-        );
-        log("platform is verified: " + window.djiBridge.platformIsVerified());
+        )
+    );
 
-        var register_params = JSON.stringify({
-          host: "tcp://hostnamehere:1883",
-          connectCallback: "reg_calback",
-          username: "userloginhere",
-          password: "userpasswordhere",
-        });
-        
-        log("Params being loaded: " + register_params);
-        var loadResult = window.djiBridge.platformLoadComponent("thing", register_params);
-        log("Load Component result: " + loadResult);
-        log("State after load: " + window.djiBridge.thingGetConnectState());
-        
-        log("Attempting thingConnect with user: userloginhere");
-        var connectResult = window.djiBridge.thingConnect("userloginhere", "userpasswordhere", "reg_calback");
-        log("thingConnect result: " + connectResult);
 
-        log("Thing Connect state: " + window.djiBridge.thingGetConnectState());
-        // log("TODO here I am supposed to ask about login, password, gateway");
+    // --------------------------------------------------------
+    // Cloud platform information
+    // --------------------------------------------------------
+
+    call(
+      "platformSetInformation",
+      () =>
+        window.djiBridge.platformSetInformation(
+          "DJI djibridge",
+          CLOUD_NAME,
+          CLOUD_DESCRIPTION
+        )
+    );
+
+
+    // --------------------------------------------------------
+    // MQTT configuration
+    // --------------------------------------------------------
+
+    const mqttUrl =
+      "tcp://" +
+      MQTT_HOST +
+      ":" +
+      MQTT_PORT;
+
+    const registerParams =
+      JSON.stringify({
+        host: mqttUrl,
+        connectCallback: "reg_callback",
+        username: MQTT_USERNAME,
+        password: MQTT_PASSWORD
       });
 
-      var logoutButton = document.getElementById("logout-button");
-      logoutButton.addEventListener("click", function () {
-        log(
-          "unregistering: " + window.djiBridge.platformUnloadComponent("thing")
-        );
-      });
 
-      document
-        .getElementById("raport-button")
-        .addEventListener("click", function () {
-          log(
-            "Statusy platformIsComponentLoaded: " +
-              window.djiBridge.platformIsComponentLoaded("thing") +
-              "\nthing state" +
-              window.djiBridge.thingGetConnectState()
-          );
-        });
+    debugLog(
+      "MQTT configuration",
+      {
+        url: mqttUrl,
+        username: MQTT_USERNAME
+      }
+    );
 
-      log("platform is verified: " + window.djiBridge.platformIsVerified());
-    </script>
-  </body>
+
+    // --------------------------------------------------------
+    // Load Thing component
+    // --------------------------------------------------------
+
+    call(
+      "platformLoadComponent(thing)",
+      () =>
+        window.djiBridge.platformLoadComponent(
+          "thing",
+          registerParams
+        )
+    );
+
+
+    // --------------------------------------------------------
+    // Connect
+    // --------------------------------------------------------
+
+    call(
+      "thingConnect",
+      () =>
+        window.djiBridge.thingConnect(
+          MQTT_USERNAME,
+          MQTT_PASSWORD,
+          "reg_callback"
+        )
+    );
+
+
+    debugLog(
+      "--- LOGIN END; waiting for connection callback ---"
+    );
+  }
+);
+
+
+// ------------------------------------------------------------
+// Logout
+// ------------------------------------------------------------
+
+document.getElementById("logout-button").addEventListener(
+  "click",
+  function () {
+
+    debugLog("--- LOGOUT START ---");
+
+
+    call(
+      "thingDisconnect",
+      () =>
+        window.djiBridge.thingDisconnect()
+    );
+
+
+    call(
+      "platformUnloadComponent",
+      () =>
+        window.djiBridge.platformUnloadComponent("thing")
+    );
+
+
+    debugLog("--- LOGOUT END ---");
+  }
+);
+
+
+// ------------------------------------------------------------
+// Report
+// ------------------------------------------------------------
+
+document.getElementById("report-button").addEventListener(
+  "click",
+  function () {
+
+    show(
+      "Platform verified",
+      window.djiBridge.platformIsVerified()
+    );
+
+    show(
+      "Thing component loaded",
+      window.djiBridge.platformIsComponentLoaded("thing")
+    );
+
+    show(
+      "Thing state",
+      window.djiBridge.thingGetConnectState()
+    );
+
+    show(
+      "Thing configs",
+      window.djiBridge.thingGetConfigs()
+    );
+
+    show(
+      "Remote controller SN",
+      window.djiBridge.platformGetRemoteControllerSN()
+    );
+
+    show(
+      "Aircraft SN",
+      window.djiBridge.platformGetAircraftSN()
+    );
+  }
+);
+
+
+// ------------------------------------------------------------
+// Initial state
+// ------------------------------------------------------------
+
+show(
+  "Platform verified on page load",
+  window.djiBridge.platformIsVerified()
+);
+
+debugBackend(
+  "WebView page loaded"
+);
+
+</script>
+
+</body>
 </html>
